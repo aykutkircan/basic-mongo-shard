@@ -1,0 +1,56 @@
+version: '3.6'
+services:
+
+  # Config servers for metadata
+  configserver-01:
+    image: mongo:5.0.3
+    command: mongod --auth --port 27017 --configsvr --replSet mongo-configserver --dbpath /data/db --keyFile /mongodb.key
+    volumes:
+      - ./mongo-shard-scripts/mongodb.key:/mongodb.key
+      - ./mongo-shard-scripts/mongo-configserver.init.js:/mongo-configserver.init.js
+      - ./data/configserver-01-data:/data/db
+
+  # First shard
+  shard-01a:
+    image: mongo:5.0.3
+    command: mongod --auth --port 27018 --shardsvr --replSet mongo-shard-01 --dbpath /data/db --keyFile /mongodb.key
+    volumes:
+      - ./mongo-shard-scripts/mongodb.key:/mongodb.key
+      - ./mongo-shard-scripts/mongo-shard-01.init.js:/mongo-shard-01.init.js
+      - ./data/shard-01a-data:/data/db
+
+  # Second shard
+  shard-02a:
+    image: mongo:5.0.3
+    command: mongod --auth --port 27019 --shardsvr --replSet mongo-shard-02 --dbpath /data/db --keyFile /mongodb.key
+    volumes:
+      - ./mongo-shard-scripts/mongodb.key:/mongodb.key
+      - ./mongo-shard-scripts/mongo-shard-02.init.js:/mongo-shard-02.init.js
+      - ./data/shard-02a-data:/data/db
+
+  # Third shard
+  shard-03a:
+    image: mongo:5.0.3
+    command: mongod --auth --port 27020 --shardsvr --replSet mongo-shard-03 --dbpath /data/db --keyFile /mongodb.key
+    volumes:
+      - ./mongo-shard-scripts/mongodb.key:/mongodb.key
+      - ./mongo-shard-scripts/mongo-shard-03.init.js:/mongo-shard-03.init.js
+      - ./data/shard-03a-data:/data/db
+
+  # Mongo router
+  router-01:
+    image: mongo:5.0.3
+    command: mongos --configdb mongo-configserver/configserver-01:27017 --keyFile /mongodb.key --bind_ip_all
+    volumes:
+      - ./mongo-shard-scripts/mongodb.key:/mongodb.key
+      - ./mongo-shard-scripts/mongo-sharding.init.js:/mongo-sharding.init.js
+      - ./mongo-shard-scripts/mongo-auth.init.js:/mongo-auth.init.js
+      - ./mongo-shard-scripts/mongo-auth.js:/mongo-auth.js
+    # Can be useful if you need to access it from your current host within Robomongo or some other clients
+    ports:
+     - "27017:27017"
+    depends_on:
+      - configserver-01
+      - shard-01a
+      - shard-02a
+      - shard-03a
